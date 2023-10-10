@@ -1,0 +1,53 @@
+#!/bin/bash
+
+kill_processes_by_app_name() {
+    local app_name="$1"
+
+    # Search for processes containing "${app_name}" in their names
+    processes=$(ps aux | grep "${app_name}" | grep -v "grep")
+
+    # Check if any matching processes were found
+    if [ -n "$processes" ]; then
+        # Loop through the matching processes and kill them
+        echo "Killing processes with names containing ${app_name}:"
+        echo "$processes"
+        echo "$processes" | while read -r line; do
+            pid=$(echo "$line" | awk '{print $2}')
+            echo "Killing process with PID $pid"
+            kill "$pid"
+        done
+    else
+        echo "No processes found with names containing ${app_name}"
+    fi
+}
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <argument>"
+    exit 1 # Exit the script with a non-zero status code
+fi
+
+app_name="ppm.jar"
+
+script_path="$(dirname "$(readlink -f "$0")")"
+
+action="$1"
+
+case "$action" in
+"restart")
+    echo "Restarting..."
+    kill_processes_by_app_name "$app_name"
+    nohup java -Duser.dir=${script_path} -jar ${script_path}/${app_name} --server.port=8092 >${script_path}/log 2>&1 &
+    ;;
+"stop")
+    echo "Stopping..."
+    kill_processes_by_app_name "$app_name"
+    ;;
+"log")
+    echo "Logging..."
+    cat ${script_path}/log
+    ;;
+*)
+    echo "Invalid action. Supported actions: restart, stop, log"
+    exit 1
+    ;;
+esac
